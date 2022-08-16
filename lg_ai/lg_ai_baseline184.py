@@ -34,7 +34,15 @@ train_y = train_df.filter(regex='Y') # Output : Y Feature
 # model = XGBRegressor()
 # model = SVR()
 # model = LinearRegression()
-LR = RegressorChain(model).fit(train_x, train_y)
+# LR = RegressorChain(model).fit(train_x, train_y)
+from sklearn.model_selection import GridSearchCV
+regressor_4 = SVR()
+REG1 = MultiOutputRegressor(regressor_4)
+param_grid = {'estimator__C':[0.1,1,10],
+             'estimator__gamma':[0.1,1],
+             'estimator__kernel':['rbf', 'sigmoid']}
+grid = GridSearchCV(REG1, param_grid, refit=True, verbose=3, n_jobs=-1)
+grid.fit(train_x,train_y)
 print('Done.')
 cv = RepeatedKFold(n_splits=10,n_repeats=3,random_state=1)
 cross_score = cross_val_score(LR,train_x,train_y, scoring='neg_mean_absolute_error',cv=cv,n_jobs=-1)
@@ -55,7 +63,18 @@ from sklearn.metrics import r2_score
 
 x_train, x_test, y_train, y_test = train_test_split(train_x, train_y, train_size=0.8, random_state=63)
 print('r2',r2_score(y_test, LR.predict(x_test)))
-
+from sklearn.metrics import mean_squared_error
+def lg_nrmse(gt, preds):
+    # 각 Y Feature별 NRMSE 총합
+    # Y_01 ~ Y_08 까지 20% 가중치 부여
+    all_nrmse = []
+    for idx in range(1,15): # ignore 'ID'
+        rmse = mean_squared_error(gt[:,idx], preds[:,idx], squared=False)
+        nrmse = rmse/np.mean(np.abs(gt[:,idx]))
+        all_nrmse.append(nrmse)
+    score = 1.2 * np.sum(all_nrmse[:8]) + 1.0 * np.sum(all_nrmse[8:14])
+    return score
+print('nrmse',lg_nrmse(y_test,np.array(LR.predict(x_test))))
 
 
 
